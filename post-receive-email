@@ -238,6 +238,8 @@ generate_email_header()
 	X-Git-Oldrev: $oldrev
 	X-Git-Newrev: $newrev
 	Auto-Submitted: auto-generated
+	Content-Transfer-Encoding: 8bit
+	Content-Type: text/html; charset="UTF-8"
 
 	This is an automated email from the git hooks/post-receive script. It was
 	generated because a ref change was pushed to the repository containing
