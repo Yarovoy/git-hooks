@@ -84,6 +84,8 @@ prep_for_email()
 	# --- Arguments
 	oldrev=$(git rev-parse $1)
 	newrev=$(git rev-parse $2)
+	# Get a full address of a committer: User Name <username@site.com>.
+	committer_email=`git show -s --pretty=format:"%an <%ae>" $newrev | sed -n '1 p'`
 	refname="$3"
 
 	# --- Interpret
@@ -232,19 +234,13 @@ generate_email_header()
 	# Generate header
 	cat <<-EOF
 	To: $recipients
-	Subject: ${emailprefix}$projectdesc $refname_type $short_refname ${change_type}d. $describe
+	From: $committer_email
+	Subject: [${projectdesc}] $refname_type $short_refname ${change_type}d. $describe
 	X-Git-Refname: $refname
 	X-Git-Reftype: $refname_type
 	X-Git-Oldrev: $oldrev
 	X-Git-Newrev: $newrev
 	Auto-Submitted: auto-generated
-	Content-Transfer-Encoding: 8bit
-	Content-Type: text/html; charset="UTF-8"
-
-	This is an automated email from the git hooks/post-receive script. It was
-	generated because a ref change was pushed to the repository containing
-	the project "$projectdesc".
-
 	The $refname_type, $short_refname has been ${change_type}d
 	EOF
 }
@@ -270,9 +266,8 @@ generate_create_branch_email()
 {
 	# This is a new branch and so oldrev is not valid
 	echo "        at  $newrev ($newrev_type)"
-	echo ""
+	#echo ""
 
-	echo $LOGBEGIN
 	show_new_revisions
 	echo $LOGEND
 }
@@ -427,12 +422,12 @@ generate_update_branch_email()
 
 	echo ""
 	if [ -z "$rewind_only" ]; then
-		echo "Those revisions listed above that are new to this repository have"
-		echo "not appeared on any other notification email; so we list those"
-		echo "revisions in full, below."
+		#echo "Those revisions listed above that are new to this repository have"
+		#echo "not appeared on any other notification email; so we list those"
+		#echo "revisions in full, below."
 
-		echo ""
-		echo $LOGBEGIN
+		#echo ""
+		#echo $LOGBEGIN
 		show_new_revisions
 
 		# XXX: Need a way of detecting whether git rev-list actually
@@ -462,8 +457,8 @@ generate_update_branch_email()
 generate_delete_branch_email()
 {
 	echo "       was  $oldrev"
-	echo ""
-	echo $LOGBEGIN
+	#echo ""
+	#echo $LOGBEGIN
 	git show -s --pretty=oneline $oldrev
 	echo $LOGEND
 }
@@ -562,8 +557,8 @@ generate_atag_email()
 generate_delete_atag_email()
 {
 	echo "       was  $oldrev"
-	echo ""
-	echo $LOGBEGIN
+	#echo ""
+	#echo $LOGBEGIN
 	git show -s --pretty=oneline $oldrev
 	echo $LOGEND
 }
@@ -607,10 +602,15 @@ generate_general_email()
 	# Note this section also catches any other reference type (although
 	# there aren't any) and deals with them in the same way.
 
-	echo ""
+	#echo ""
 	if [ "$newrev_type" = "commit" ]; then
-		echo $LOGBEGIN
-		git show --no-color --root -s --pretty=medium $newrev
+		#echo $LOGBEGIN
+		#git show --no-color --root -s --pretty=medium $newrev
+		git show --root -s --pretty=format:"Log: %B" $newrev
+		echo $LOGEND
+		git show --root -s --pretty=format:"Author: %an <%ae>%nDate: %cd%nCommit: %H%n" $newrev
+		
+		#git show --no-color --root -s --pretty="Log: %s%nAuthor: %an <%ae>%nDate: %cd%nCommit: %H" $newrev
 		echo $LOGEND
 	else
 		# What can we do here?  The tag marks an object that is not
@@ -627,8 +627,8 @@ generate_general_email()
 generate_delete_general_email()
 {
 	echo "       was  $oldrev"
-	echo ""
-	echo $LOGBEGIN
+	#echo ""
+	#echo $LOGBEGIN
 	git show -s --pretty=oneline $oldrev
 	echo $LOGEND
 }
@@ -655,7 +655,8 @@ show_new_revisions()
 		revspec=$newrev
 	else
 		# Branch update; show revisions not part of $oldrev.
-		revspec=$oldrev..$newrev
+		#revspec=$oldrev..$newrev
+		revspec=$newrev
 	fi
 
 	other_branches=$(git for-each-ref --format='%(refname)' refs/heads/ |
@@ -663,7 +664,10 @@ show_new_revisions()
 	git rev-parse --not $other_branches |
 	if [ -z "$custom_showrev" ]
 	then
-		git rev-list --pretty --stdin $revspec
+		#git rev-list --pretty --stdin $revspec
+		git show -s --pretty=format:"Log: %B" $revspec
+		echo $LOGEND
+		git show -s --pretty=format:"Author: %an <%ae>%nDate: %cd%nCommit: %H%n" $revspec
 	else
 		git rev-list --stdin $revspec |
 		while read onerev
@@ -744,7 +748,16 @@ if [ -n "$1" -a -n "$2" -a -n "$3" ]; then
 else
 	while read oldrev newrev refname
 	do
-		prep_for_email $oldrev $newrev $refname || continue
-		generate_email $maxlines | send_mail
+		prev_rev=$oldrev
+		for rev in $(git rev-list $oldrev..$newrev --reverse)
+		do
+			prep_for_email $prev_rev $rev $refname
+			generate_email $maxlines | send_mail
+			prev_rev=$rev
+		done
+		#echo "????????????"
+		#echo "sending mail for"
+		#prep_for_email $oldrev $newrev $refname || continue
+		#generate_email $maxlines | send_mail
 	done
 fi
