@@ -749,11 +749,11 @@ else
 	while read oldrev newrev refname
 	do
 		prev_rev=$oldrev
-		for rev in $(git rev-list $oldrev..$newrev --reverse)
+		for curr_rev in $(git rev-list $oldrev..$newrev --reverse)
 		do
-			prep_for_email $prev_rev $rev $refname
+			prep_for_email $prev_rev $curr_rev $refname
 			generate_email $maxlines | send_mail
-			prev_rev=$rev
+			prev_rev=$curr_rev
 		done
 		#echo "????????????"
 		#echo "sending mail for"
